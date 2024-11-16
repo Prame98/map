@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+  <title>간단한 지도 표시하기</title>  
+  <link rel="stylesheet" href="/stylesheets/style.css" />
+  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=ii8vu2nh4a"></script>
+  <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=3364ed8ba441324a6a719fd775dba7af"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div id="navbar">지도검색서비스</div>
+  <div id="infoBox">
+    <div id="infoTitle">현재날짜</div>
+    <div id="infoContent">2024.11.10</div>
+  </div>  
+  <div id="search">
+    <input id="search_input" placeholder="목적지를 입력해주세요" />
+    <button id="search_button">검색</button>
+  </div>
+  <div id="current">현재 위치</div>  
+  <div id="map" style="width:100%;height:400px;"></div>  
+  <script type="text/javascript" src="/data/data.js"></script>
+  <script>
+    // 지도 옵션 설정 (초기 중심 좌표와 줌 레벨 설정)
+    var mapOptions = {
+      center: new naver.maps.LatLng(37.3595704, 127.105399), // 초기 중심 좌표 (네이버 그린팩토리)
+      zoom: 10 // 초기 줌 레벨
+    };
+    
+    // 네이버 지도 생성
+    var map = new naver.maps.Map('map', mapOptions);
+
+    // 마커와 인포윈도우를 담을 배열 선언
+    var markerList = [];
+    var infowindowList = [];
+
+    // 데이터 정의 (지도에 표시할 위치 데이터)
+    var data = [
+      {
+          title: "서울",
+          content: "서울 충무로 대한극장",
+          date: "2024-11-10",
+          lat: 37.561206,
+          lng: 126.994780
+      },
+      {
+          title: "서울",
+          content: "서울 충무로 매일경제",
+          date: "2024-11-10",
+          lat: 37.561532,
+          lng: 126.993272
+      },
+      {
+          title: "서울",
+          content: "서울 충무로 동국대학교 정보문화관",
+          date: "2024-11-10",
+          lat: 37.559571,
+          lng: 126.998624
+      },
+      {
+          title: "서울",
+          content: "서울 충무로 동국대학교 cj인재원",
+          date: "2024-11-10",
+          lat: 37.559286,
+          lng: 126.995225
+      }
+    ];
+
+    // 데이터에 따라 지도에 마커와 인포윈도우 추가
+    data.forEach((target, index) => {
+      const latlng = new naver.maps.LatLng(target.lat, target.lng); // 마커 위치 설정
+      const marker = new naver.maps.Marker({
+        map: map, // 마커를 표시할 지도
+        position: latlng, // 마커의 위치
+        icon: {
+          content: "<div class='marker'></div>", // 마커 커스텀 아이콘
+          anchor: new naver.maps.Point(12, 12) // 마커의 앵커 포인트 설정
+        }
+      });
+
+      // 마커를 리스트에 추가
+      markerList.push(marker);
+
+      // 인포윈도우 내용 설정
+      const context = `<div class='infowindow_wrap'>
+        <div class='infowindow_title'>${target.content}</div>
+        <div class='infowindow_date'>${target.date}</div>
+      </div>`;
+
+      // 인포윈도우 생성
+      const infowindow = new naver.maps.InfoWindow({
+        content: context,
+        backgroundColor: "#00ff0000", // 배경색 설정 (투명)
+        borderColor: "#00ff0000", // 테두리 색 설정 (투명)
+        anchorSize: new naver.maps.Size(0, 0) // 앵커 크기 설정
+      });
+
+      // 인포윈도우를 리스트에 추가
+      infowindowList.push(infowindow);
+
+      // 마커 클릭 시 인포윈도우 열기/닫기 이벤트 추가
+      naver.maps.Event.addListener(marker, "click", () => {
+        closeAllInfowindows(); // 모든 인포윈도우 닫기
+        if (infowindow.getMap()) {
+          infowindow.close(); // 이미 열려있으면 닫기
+        } else {
+          infowindow.open(map, marker); // 닫혀있으면 열기
+        }
+      });
+    });
+
+    // 모든 인포윈도우 닫기 함수
+    function closeAllInfowindows() {
+      for (let infowindow of infowindowList) {
+        infowindow.close();
+      }
+    }
+
+    let currentMarker = null;
+
+    // 현재 위치 버튼 클릭 시 현재 위치를 지도에 표시하는 기능
+    $("#current").click(() => {
+      if ("geolocation" in navigator) { // 브라우저에서 위치 정보 사용 가능 여부 확인
+        navigator.geolocation.getCurrentPosition(function (position) {
+          const lat = position.coords.latitude; // 현재 위치의 위도
+          const lng = position.coords.longitude; // 현재 위치의 경도
+          const latlng = new naver.maps.LatLng(lat, lng);
+          
+          if (currentMarker) {
+            currentMarker.setMap(null); // 이전 마커 제거
+          }
+
+          // 현재 위치를 나타내는 마커 생성
+          currentMarker = new naver.maps.Marker({
+            map: map,
+            position: latlng,
+            icon: {
+              content:
+                '<img class="pulse" draggable="false" unselectable="on" src="https://myfirstmap.s3.ap-northeast-2.amazonaws.com/circle.png">', // 커스텀 아이콘 이미지
+              anchor: new naver.maps.Point(11, 11),
+            }
+          });
+          
+          map.setLevel(3); // 지도 줌 레벨 설정
+          map.panTo(latlng); // 지도 중심을 현재 위치로 이동
+        });
+      } else {
+        alert("위치정보 사용 불가능"); // 위치 정보 사용 불가능 시 경고 메시지
+      }
+    });
+
+    // 카카오 지도 검색 기능 추가
+    let ps = new kakao.maps.services.Places(); // 카카오 장소 검색 객체 생성
+    let searchMarker = null;
+
+    // 위치 검색 함수
+    function searchLocation() {
+      let content = $("#search_input").val(); // 검색 입력창의 값 가져오기
+      ps.keywordSearch(content, placeSearchCB); // 키워드로 장소 검색
+    }
+
+    // 검색 입력창에서 Enter 키를 누르면 검색 실행
+    $("#search_input").on("keydown", function (e) {
+      if (e.keyCode == 13) {
+        searchLocation();
+      }
+    });        
+
+    // 검색 버튼 클릭 시 검색 실행
+    $("#search_button").on("click", function (e) {
+      searchLocation();
+    });
+
+    // 장소 검색 결과 콜백 함수
+    function placeSearchCB(data, status, pagination) {
+      if (status === kakao.maps.services.Status.OK) { // 검색 성공 시
+        let target = data[0]; // 첫 번째 결과 선택
+        const lat = target.y; // 위도
+        const lng = target.x; // 경도
+        const latlng = new naver.maps.LatLng(lat, lng);
+
+        if (searchMarker) {
+          searchMarker.setMap(null); // 이전 검색 마커 제거
+        }
+
+        // 검색 결과 위치에 마커 추가
+        searchMarker = new naver.maps.Marker({
+          position: latlng,
+          map: map
+        });
+
+        map.setLevel(3); // 지도 줌 레벨 설정
+        map.panTo(latlng); // 지도 중심을 검색 결과 위치로 이동
+      } else {
+        alert("검색결과가 없습니다."); // 검색 결과가 없을 경우 경고 메시지
+      }
+    }
+  </script>
+</body>
+</html>
